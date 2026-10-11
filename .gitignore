@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+*.so
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# mypy
+.mypy_cache/
+
+# ruff
+.ruff_cache/
+
+# pytest
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Docker
+.docker/
+
+# Node (frontend)
+node_modules/
+frontend/dist/
+frontend/build/
+
+# Environment
+.env
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Benchmark results (committed selectively)
+benchmarks/results/
+
+# Docs build artifacts
+docs/site/

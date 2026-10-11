@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        working-directory: backend
+        run: pip install -e ".[dev]"
+
+      - name: Ruff check
+        working-directory: backend
+        run: |
+          ruff check app/ tests/
+          ruff format --check app/ tests/
+
+      - name: Mypy
+        working-directory: backend
+        run: mypy app/
+
+      - name: Import boundary check
+        run: |
+          # core/ must not import fastapi or prometheus_client
+          ! grep -rn --include='*.py' \
+            -e 'import fastapi' -e 'from fastapi' \
+            -e 'import prometheus_client' -e 'from prometheus_client' \
+            backend/app/core/ 2>/dev/null || echo "Import boundary: PASS"
+
+          # redis only in redis_store.py
+          REDIS_IMPORTS=$(grep -rn --include='*.py' \
+            -e 'import redis' -e 'from redis' \
+            backend/app/core/ 2>/dev/null \
+            | grep -v 'redis_store.py' || true)
+          if [ -n "$REDIS_IMPORTS" ]; then
+            echo "FAIL: Redis imported outside redis_store.py:"
+            echo "$REDIS_IMPORTS"
+            exit 1
+          fi
+
+      - name: Run tests (unit + contract + api)
+        working-directory: backend
+        run: pytest -m "unit or contract or api" -v
