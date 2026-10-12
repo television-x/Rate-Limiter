@@ -103,3 +103,18 @@ class LimiterFactory:
     def registered_algorithms(self) -> list[Algorithm]:
         """List all registered algorithms."""
         return list(self._registry.keys())
+
+
+def get_default_limiter_factory() -> LimiterFactory:
+    """Create a LimiterFactory pre-registered with all 4 built-in algorithms."""
+    from app.core.algorithms.fixed_window import FixedWindowLimiter
+    from app.core.algorithms.sliding_window_counter import SlidingWindowCounterLimiter
+    from app.core.algorithms.sliding_window_log import SlidingWindowLogLimiter
+    from app.core.algorithms.token_bucket import TokenBucketLimiter
+
+    factory = LimiterFactory()
+    factory.register(Algorithm.FIXED_WINDOW, FixedWindowLimiter)
+    factory.register(Algorithm.TOKEN_BUCKET, TokenBucketLimiter)
+    factory.register(Algorithm.SLIDING_WINDOW_LOG, SlidingWindowLogLimiter)
+    factory.register(Algorithm.SLIDING_WINDOW_COUNTER, SlidingWindowCounterLimiter)
+    return factory

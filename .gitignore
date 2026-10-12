@@ -54,3 +54,6 @@ benchmarks/results/
 
 # Docs build artifacts
 docs/site/
+
+# Agent local configuration
+.agents/
