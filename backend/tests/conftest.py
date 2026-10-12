@@ -26,3 +26,52 @@ async def memory_store(fake_clock: FakeClock) -> AsyncGenerator[MemoryStorage, N
     store = MemoryStorage(clock=fake_clock)
     yield store
     await store.close()
+
+
+@pytest.fixture
+async def redis_store() -> AsyncGenerator[object, None]:
+    """Provide a clean RedisStorage instance connected to test Redis."""
+    from app.core.storage.redis_store import RedisStorage
+
+    test_url = "redis://127.0.0.1:6379/15"
+    store = RedisStorage(url=test_url)
+    try:
+        await store.client.ping()
+    except Exception as exc:
+        await store.close()
+        pytest.skip(f"Redis not available at {test_url}: {exc}")
+
+    # Clear test database before test
+    await store.client.flushdb()
+    try:
+        yield store
+    finally:
+        try:
+            await store.client.flushdb()
+        finally:
+            await store.close()
+
+
+@pytest.fixture
+async def redis_store_with_clock(
+    fake_clock: FakeClock,
+) -> AsyncGenerator[object, None]:
+    """Provide a RedisStorage instance using an injected FakeClock for time."""
+    from app.core.storage.redis_store import RedisStorage
+
+    test_url = "redis://127.0.0.1:6379/15"
+    store = RedisStorage(url=test_url, clock=fake_clock)
+    try:
+        await store.client.ping()
+    except Exception as exc:
+        await store.close()
+        pytest.skip(f"Redis not available at {test_url}: {exc}")
+
+    await store.client.flushdb()
+    try:
+        yield store
+    finally:
+        try:
+            await store.client.flushdb()
+        finally:
+            await store.close()

@@ -19,18 +19,36 @@ from app.core.storage.memory import MemoryStorage
 # ── Fixtures ──────────────────────────────────────────────────────
 
 
-@pytest.fixture(params=["memory"])
+@pytest.fixture(params=["memory", "redis"])
 async def store(request: pytest.FixtureRequest) -> Storage:
     """Parametrized storage fixture.
 
     Phase 1: memory only.
-    Phase 4: add "redis" parameter.
+    Phase 4: memory and redis.
     """
     if request.param == "memory":
         clock = FakeClock(start_ms=1_000_000_000_000)
         s = MemoryStorage(clock=clock)
         yield s  # type: ignore[misc]
         await s.close()
+    elif request.param == "redis":
+        from app.core.storage.redis_store import RedisStorage
+
+        test_url = "redis://127.0.0.1:6379/15"
+        r = RedisStorage(url=test_url)
+        try:
+            await r.client.ping()
+        except Exception as exc:
+            await r.close()
+            pytest.skip(f"Redis not available: {exc}")
+        await r.client.flushdb()
+        try:
+            yield r  # type: ignore[misc]
+        finally:
+            try:
+                await r.client.flushdb()
+            finally:
+                await r.close()
     else:
         pytest.skip(f"Unknown store: {request.param}")
 
@@ -171,6 +189,11 @@ class TestDecr:
 @pytest.mark.contract
 class TestOptimistic:
     """Verify optimistic transaction behavior."""
+
+    @pytest.fixture(autouse=True)
+    def skip_redis_phase4(self, store: Storage) -> None:
+        if type(store).__name__ == "RedisStorage":
+            pytest.skip("Optimistic WATCH transactions for Redis are implemented in Phase 5")
 
     async def test_commit_succeeds_when_no_conflict(self, store: Storage) -> None:
         """Transaction commits when watched keys are unchanged."""
