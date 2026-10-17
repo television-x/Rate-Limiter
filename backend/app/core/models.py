@@ -39,6 +39,7 @@ class ContentionMode(enum.StrEnum):
     ALLOW = "allow"
 
 
+# ENUMS - custom data types that have a fixed set of values
 class DecisionReason(enum.StrEnum):
     """Why a rate-limit decision was made."""
 

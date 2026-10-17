@@ -9,6 +9,7 @@ class RateLimiterError(Exception):
     """Base class for all rate limiter domain errors."""
 
 
+# What happens if Redis is down?
 class StorageUnavailable(RateLimiterError):
     """Raised when the storage backend is unreachable or timed out.
 

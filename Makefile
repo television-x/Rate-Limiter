@@ -1,20 +1,24 @@
-.PHONY: lint test up down bench install
+.PHONY: lint test test-all up down bench install venv
 
 BACKEND_DIR := backend
+UV ?= $(shell which uv 2>/dev/null || echo $(HOME)/.local/bin/uv)
 
-# ── Install ──────────────────────────────────────────────────────
+# ── Environment & Install (managed via uv) ──────────────────────
+venv:
+	cd $(BACKEND_DIR) && $(UV) venv
+
 install:
-	cd $(BACKEND_DIR) && pip install -e ".[dev]"
+	cd $(BACKEND_DIR) && $(UV) pip install -e ".[dev]"
 
 # ── Lint ─────────────────────────────────────────────────────────
 lint: lint-ruff lint-mypy lint-imports
 
 lint-ruff:
-	cd $(BACKEND_DIR) && ruff check app/ tests/
-	cd $(BACKEND_DIR) && ruff format --check app/ tests/
+	cd $(BACKEND_DIR) && $(UV) run ruff check app/ tests/
+	cd $(BACKEND_DIR) && $(UV) run ruff format --check app/ tests/
 
 lint-mypy:
-	cd $(BACKEND_DIR) && mypy app/
+	cd $(BACKEND_DIR) && $(UV) run mypy app/
 
 lint-imports:
 	@echo "=== Import boundary check ==="
@@ -39,10 +43,10 @@ lint-imports:
 
 # ── Test ─────────────────────────────────────────────────────────
 test:
-	cd $(BACKEND_DIR) && pytest -m "unit or contract or api" -v
+	cd $(BACKEND_DIR) && $(UV) run pytest -m "unit or contract or api" -v
 
 test-all:
-	cd $(BACKEND_DIR) && pytest -v
+	cd $(BACKEND_DIR) && $(UV) run pytest -v
 
 # ── Docker ───────────────────────────────────────────────────────
 up:

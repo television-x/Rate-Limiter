@@ -41,7 +41,7 @@ class Limiter(ABC):
         """The policy this limiter enforces."""
         return self._policy
 
-    @abstractmethod
+    @abstractmethod  # Decorators are used to add functionality to a function without modifying its source code.
     async def check(self, key: str, cost: int = 1) -> Decision:
         """Check whether a request should be allowed.
 

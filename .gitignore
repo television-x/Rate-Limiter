@@ -57,3 +57,7 @@ docs/site/
 
 # Agent local configuration
 .agents/
+
+# Archives
+*.zip
+*.tar.gz
