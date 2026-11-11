@@ -5,9 +5,9 @@ Uses pydantic-settings to load settings from environment variables or .env files
 
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 from ipaddress import ip_address, ip_network
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -87,4 +87,3 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Return cached application settings."""
     return Settings()
-

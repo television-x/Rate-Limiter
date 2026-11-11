@@ -65,4 +65,3 @@ class PolicyListResponse(BaseModel):
     """List of effective policies available in the system."""
 
     policies: list[PolicyInfo]
-

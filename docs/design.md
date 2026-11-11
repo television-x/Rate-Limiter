@@ -33,16 +33,16 @@ Recorded at Phase 0 start. Updated as phases complete.
 | `backend/app/core/storage/retry.py` | **exists** | P5 | Bounded retry with jitter |
 | `backend/app/core/failure_policy.py` | proposed | P7 | Failure policy resolution |
 | `backend/app/core/circuit_breaker.py` | proposed | P7 | Circuit breaker |
-| `backend/app/main.py` | proposed | P6 | FastAPI app factory |
-| `backend/app/config.py` | proposed | P6 | Pydantic settings |
-| `backend/app/policies.py` | proposed | P6 | Route-to-policy registry |
-| `backend/policies.yaml` | proposed | P6 | Policy configuration |
-| `backend/app/api/` | proposed | P6 | HTTP API layer |
-| `backend/app/middleware/` | proposed | P6/P8 | Observability middleware |
+| `backend/app/main.py` | **exists** | P6 | FastAPI app factory |
+| `backend/app/config.py` | **exists** | P6 | Pydantic settings |
+| `backend/app/policies.py` | **exists** | P6 | Route-to-policy registry |
+| `backend/policies.yaml` | **exists** | P6 | Policy configuration |
+| `backend/app/api/` | **exists** | P6 | HTTP API layer |
+| `backend/app/middleware/` | **exists** | P6/P8 | Observability middleware |
 | `backend/app/metrics/prometheus.py` | proposed | P8 | Prometheus metrics |
 | `backend/app/services/stats.py` | proposed | P9 | Stats service |
 | `backend/app/api/routes_admin.py` | proposed | P9 | Admin API |
-| `backend/Dockerfile` | proposed | P6 | Backend container |
+| `backend/Dockerfile` | **exists** | P6 | Backend container |
 | `docker-compose.yml` | **exists** | P4 | Compose deployment (Redis service) |
 | `infra/nginx/nginx.conf` | proposed | P10 | Load balancer config |
 | `infra/prometheus/prometheus.yml` | proposed | P8 | Prometheus config |
@@ -51,6 +51,8 @@ Recorded at Phase 0 start. Updated as phases complete.
 | `docs/algorithms.md` | **exists** | P3 | Algorithm documentation |
 | `docs/adr/0002-storage-contract-and-time-source.md` | **exists** | P4 | ADR on storage contract and time source |
 | `docs/adr/0003-strict-sliding-log-and-optimistic-locking.md` | **exists** | P5 | ADR on strict sliding log and optimistic locking |
+| `docs/adr/0004-dependency-vs-middleware.md` | **exists** | P6 | ADR on dependency vs middleware separation |
+| `docs/adr/0005-identity-trust-and-client-resolution.md` | **exists** | P6 | ADR on identity trust and client resolution |
 | `docs/operations.md` | proposed | P10 | Operations guide |
 | `docs/benchmarks.md` | proposed | P12 | Benchmark results |
 | `docs/openapi.json` | proposed | P9 | API contract snapshot |

@@ -11,6 +11,7 @@ Malformed identities (overlong, control characters) trigger InvalidIdentity.
 from __future__ import annotations
 
 import re
+
 from fastapi import Request
 
 from app.config import Settings, get_settings
@@ -91,4 +92,3 @@ def extract_identity(
     client_ip = extract_client_ip(request, settings)
     validate_identity_string(client_ip)
     return Subject(kind=IdentityKind.IP, identity=client_ip)
-

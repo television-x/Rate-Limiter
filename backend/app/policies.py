@@ -5,7 +5,6 @@ Loads and validates rate limiting policies from policies.yaml at startup.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any
 
@@ -94,4 +93,3 @@ def parse_policy_dict(raw: dict[str, Any]) -> Policy:
         on_contention=on_contention,
         scope=scope,
     )
-

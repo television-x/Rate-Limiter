@@ -303,6 +303,13 @@ class Storage(ABC):
             True if the key existed and was deleted, False otherwise.
         """
 
+    async def ping(self) -> bool:
+        """Check if the storage backend is healthy and responding.
+
+        Default implementation returns True.
+        """
+        return True
+
     @abstractmethod
     async def close(self) -> None:
         """Release resources held by this storage backend.

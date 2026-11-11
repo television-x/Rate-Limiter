@@ -6,6 +6,7 @@ All error responses use application/problem+json per AGENTS.md.
 from __future__ import annotations
 
 from typing import Any
+
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
@@ -96,4 +97,3 @@ def contention_exhausted_handler(request: Request, exc: ContentionExhausted) -> 
         content=content,
         headers={"Retry-After": "1", "Content-Type": "application/problem+json"},
     )
-

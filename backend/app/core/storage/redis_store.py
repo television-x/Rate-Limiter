@@ -251,6 +251,13 @@ class RedisStorage(Storage):
             await pipe.watch(*watch_keys)
         return RedisTransaction(pipe)
 
+    async def ping(self) -> bool:
+        """Check if Redis backend is responding to ping."""
+        try:
+            return bool(await self._client.ping())
+        except Exception:
+            return False
+
     async def close(self) -> None:
         """Close Redis connection and disconnect pool."""
         await self._client.close()
