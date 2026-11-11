@@ -31,8 +31,8 @@ Recorded at Phase 0 start. Updated as phases complete.
 | `backend/app/core/algorithms/sliding_window_counter.py` | **exists** | P3 | Sliding window counter |
 | `backend/app/core/storage/redis_store.py` | **exists** | P4/P5 | Redis storage adapter (atomic & optimistic) |
 | `backend/app/core/storage/retry.py` | **exists** | P5 | Bounded retry with jitter |
-| `backend/app/core/failure_policy.py` | proposed | P7 | Failure policy resolution |
-| `backend/app/core/circuit_breaker.py` | proposed | P7 | Circuit breaker |
+| `backend/app/core/failure_policy.py` | **exists** | P7 | Failure policy resolution |
+| `backend/app/core/circuit_breaker.py` | **exists** | P7 | Circuit breaker |
 | `backend/app/main.py` | **exists** | P6 | FastAPI app factory |
 | `backend/app/config.py` | **exists** | P6 | Pydantic settings |
 | `backend/app/policies.py` | **exists** | P6 | Route-to-policy registry |
@@ -53,6 +53,7 @@ Recorded at Phase 0 start. Updated as phases complete.
 | `docs/adr/0003-strict-sliding-log-and-optimistic-locking.md` | **exists** | P5 | ADR on strict sliding log and optimistic locking |
 | `docs/adr/0004-dependency-vs-middleware.md` | **exists** | P6 | ADR on dependency vs middleware separation |
 | `docs/adr/0005-identity-trust-and-client-resolution.md` | **exists** | P6 | ADR on identity trust and client resolution |
+| `docs/adr/0006-failure-policy-and-circuit-breaker.md` | **exists** | P7 | ADR on failure handling and circuit breaker |
 | `docs/operations.md` | proposed | P10 | Operations guide |
 | `docs/benchmarks.md` | proposed | P12 | Benchmark results |
 | `docs/openapi.json` | proposed | P9 | API contract snapshot |

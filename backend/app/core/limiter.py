@@ -99,6 +99,28 @@ class LimiterFactory:
             raise ValueError(f"No limiter registered for algorithm: {policy.algorithm.value}")
         return cls(policy, storage, observer)
 
+    def create_resilient(
+        self,
+        policy: Policy,
+        storage: Storage,
+        fallback_storage: Storage | None = None,
+        observer: Observer | None = None,
+    ) -> Limiter:
+        """Create a resilient Limiter wrapping primary and optional fallback storage."""
+        from app.core.failure_policy import ResilientLimiter
+
+        primary = self.create(policy, storage, observer)
+        fallback = (
+            self.create(policy, fallback_storage, observer)
+            if fallback_storage is not None
+            else None
+        )
+        return ResilientLimiter(
+            primary_limiter=primary,
+            fallback_limiter=fallback,
+            observer=observer,
+        )
+
     @property
     def registered_algorithms(self) -> list[Algorithm]:
         """List all registered algorithms."""

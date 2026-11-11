@@ -41,3 +41,4 @@ We separate concerns strictly per AGENTS.md §3.5:
 
 ### Negative / Trade-offs
 - Requires route authors to explicitly annotate endpoints with `Depends(rate_limit(...))` rather than having a blanket global middleware intercept everything. (This is intentional, as unmetered endpoints such as `/healthz` and `/metrics` must never be rate-limited).
+

@@ -25,6 +25,7 @@ from redis.asyncio.connection import ConnectionPool
 from redis.exceptions import WatchError
 
 from app.core.clock import Clock
+from app.core.errors import StorageUnavailable
 from app.core.storage.base import Storage, Transaction
 
 
@@ -43,31 +44,40 @@ class RedisTransaction:
 
     async def get(self, key: str) -> str | None:
         """Read a key's value under the watch guarantee."""
-        raw = await self._pipe.get(key)
-        if raw is None:
-            return None
-        if isinstance(raw, bytes):
-            return raw.decode("utf-8")
-        return str(raw)
+        try:
+            raw = await self._pipe.get(key)
+            if raw is None:
+                return None
+            if isinstance(raw, bytes):
+                return raw.decode("utf-8")
+            return str(raw)
+        except (aioredis.RedisError, OSError) as exc:
+            raise StorageUnavailable(f"Redis transaction read failed: {exc}") from exc
 
     async def hgetall(self, key: str) -> dict[str, str]:
         """Read all fields of a hash key under the watch guarantee."""
-        raw = await self._pipe.hgetall(key)
-        if not raw:
-            return {}
-        result: dict[str, str] = {}
-        for k, v in raw.items():
-            k_str = k.decode("utf-8") if isinstance(k, bytes) else str(k)
-            v_str = v.decode("utf-8") if isinstance(v, bytes) else str(v)
-            result[k_str] = v_str
-        return result
+        try:
+            raw = await self._pipe.hgetall(key)
+            if not raw:
+                return {}
+            result: dict[str, str] = {}
+            for k, v in raw.items():
+                k_str = k.decode("utf-8") if isinstance(k, bytes) else str(k)
+                v_str = v.decode("utf-8") if isinstance(v, bytes) else str(v)
+                result[k_str] = v_str
+            return result
+        except (aioredis.RedisError, OSError) as exc:
+            raise StorageUnavailable(f"Redis transaction hgetall failed: {exc}") from exc
 
     async def zrangebyscore(self, key: str, min_score: float, max_score: float) -> list[str]:
         """Read sorted set members in a score range under the watch guarantee."""
-        raw = await self._pipe.zrangebyscore(key, min_score, max_score)
-        if not raw:
-            return []
-        return [m.decode("utf-8") if isinstance(m, bytes) else str(m) for m in raw]
+        try:
+            raw = await self._pipe.zrangebyscore(key, min_score, max_score)
+            if not raw:
+                return []
+            return [m.decode("utf-8") if isinstance(m, bytes) else str(m) for m in raw]
+        except (aioredis.RedisError, OSError) as exc:
+            raise StorageUnavailable(f"Redis transaction zrangebyscore failed: {exc}") from exc
 
     def _ensure_multi(self) -> None:
         """Ensure the pipeline has entered explicit MULTI mode before queuing writes."""
@@ -118,6 +128,8 @@ class RedisTransaction:
                 return res is not None
             except WatchError:
                 return False
+            except (aioredis.RedisError, OSError) as exc:
+                raise StorageUnavailable(f"Redis transaction commit failed: {exc}") from exc
         finally:
             self._completed = True
             await self._pipe.reset()
@@ -193,20 +205,26 @@ class RedisStorage(Storage):
         if self._clock_override is not None:
             return await self._clock_override.now_ms()
 
-        # Redis TIME returns (seconds: int, microseconds: int)
-        seconds, microseconds = await self._client.time()
-        return int(seconds) * 1000 + int(microseconds) // 1000
+        try:
+            # Redis TIME returns (seconds: int, microseconds: int)
+            seconds, microseconds = await self._client.time()
+            return int(seconds) * 1000 + int(microseconds) // 1000
+        except (aioredis.RedisError, OSError) as exc:
+            raise StorageUnavailable(f"Redis time command failed: {exc}") from exc
 
     async def incr_expiring(self, key: str, by: int, ttl_ms: int) -> int:
         """Increment a key and set its TTL in one atomic MULTI/EXEC transaction.
 
         The TTL is set unconditionally via PEXPIRE (idempotent).
         """
-        pipe = self._client.pipeline(transaction=True)
-        pipe.incrby(key, by)
-        pipe.pexpire(key, ttl_ms)
-        results = await pipe.execute()
-        return int(results[0])
+        try:
+            pipe = self._client.pipeline(transaction=True)
+            pipe.incrby(key, by)
+            pipe.pexpire(key, ttl_ms)
+            results = await pipe.execute()
+            return int(results[0])
+        except (aioredis.RedisError, OSError) as exc:
+            raise StorageUnavailable(f"Redis incr_expiring failed: {exc}") from exc
 
     async def incr_expiring_peek(
         self, key: str, by: int, ttl_ms: int, peek_key: str
@@ -215,30 +233,42 @@ class RedisStorage(Storage):
 
         Executed in a single MULTI/EXEC pipeline so no interleaving can occur.
         """
-        pipe = self._client.pipeline(transaction=True)
-        pipe.incrby(key, by)
-        pipe.pexpire(key, ttl_ms)
-        pipe.get(peek_key)
-        results = await pipe.execute()
+        try:
+            pipe = self._client.pipeline(transaction=True)
+            pipe.incrby(key, by)
+            pipe.pexpire(key, ttl_ms)
+            pipe.get(peek_key)
+            results = await pipe.execute()
 
-        new_val = int(results[0])
-        peek_raw = results[2]
-        peek_val = int(peek_raw) if peek_raw is not None else 0
-        return new_val, peek_val
+            new_val = int(results[0])
+            peek_raw = results[2]
+            peek_val = int(peek_raw) if peek_raw is not None else 0
+            return new_val, peek_val
+        except (aioredis.RedisError, OSError) as exc:
+            raise StorageUnavailable(f"Redis incr_expiring_peek failed: {exc}") from exc
 
     async def decr(self, key: str, by: int) -> int:
         """Atomic decrement for compensation."""
-        result = await self._client.decrby(key, by)
-        return int(result)
+        try:
+            result = await self._client.decrby(key, by)
+            return int(result)
+        except (aioredis.RedisError, OSError) as exc:
+            raise StorageUnavailable(f"Redis decr failed: {exc}") from exc
 
     async def delete(self, key: str) -> bool:
         """Delete a key atomically."""
-        count = await self._client.delete(key)
-        return bool(count > 0)
+        try:
+            count = await self._client.delete(key)
+            return bool(count > 0)
+        except (aioredis.RedisError, OSError) as exc:
+            raise StorageUnavailable(f"Redis delete failed: {exc}") from exc
 
     async def pttl(self, key: str) -> int:
         """Return remaining TTL in milliseconds (-2 if key does not exist, -1 if no TTL)."""
-        return int(await self._client.pttl(key))
+        try:
+            return int(await self._client.pttl(key))
+        except (aioredis.RedisError, OSError) as exc:
+            raise StorageUnavailable(f"Redis pttl failed: {exc}") from exc
 
     async def optimistic(self, watch_keys: list[str]) -> Transaction:
         """Begin an optimistic transaction watching the specified keys.
@@ -246,10 +276,13 @@ class RedisStorage(Storage):
         Uses a dedicated Redis pipeline connection. Watches watch_keys immediately.
         Commands queued after MULTI commit atomically on commit().
         """
-        pipe = self._client.pipeline()
-        if watch_keys:
-            await pipe.watch(*watch_keys)
-        return RedisTransaction(pipe)
+        try:
+            pipe = self._client.pipeline()
+            if watch_keys:
+                await pipe.watch(*watch_keys)
+            return RedisTransaction(pipe)
+        except (aioredis.RedisError, OSError) as exc:
+            raise StorageUnavailable(f"Redis optimistic watch failed: {exc}") from exc
 
     async def ping(self) -> bool:
         """Check if Redis backend is responding to ping."""

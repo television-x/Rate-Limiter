@@ -8,6 +8,8 @@ Per AGENTS.md §9:
 
 from __future__ import annotations
 
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from app.api.dependencies import enforce_rate_limit, rate_limit
@@ -15,6 +17,17 @@ from app.api.schemas import PingResponse
 from app.core.models import Algorithm, Decision
 
 router = APIRouter(prefix="/api/v1/demo", tags=["demo"])
+
+
+async def _get_time_ms(request: Request) -> int:
+    """Get current time from storage, falling back to system clock during outages."""
+    try:
+        storage = getattr(request.app.state, "storage", None)
+        if storage is not None:
+            return int(await storage.now_ms())
+    except Exception:
+        pass
+    return int(time.time() * 1000)
 
 
 @router.get("/ping", response_model=PingResponse)
@@ -25,7 +38,7 @@ async def demo_ping(
 ) -> PingResponse:
     """Default demo endpoint with standard rate limit."""
     subject = request.state.rate_limit_subject
-    now_ms = await request.app.state.storage.now_ms()
+    now_ms = await _get_time_ms(request)
     return PingResponse(
         message="pong",
         policy_id="default",
@@ -44,7 +57,7 @@ async def demo_strict(
 ) -> PingResponse:
     """Strict demo endpoint with aggressive rate limit."""
     subject = request.state.rate_limit_subject
-    now_ms = await request.app.state.storage.now_ms()
+    now_ms = await _get_time_ms(request)
     return PingResponse(
         message="pong",
         policy_id="strict",
@@ -80,7 +93,7 @@ async def demo_limited_by_algorithm(
 
     decision = await enforce_rate_limit(request, response, policy_id)
     subject = request.state.rate_limit_subject
-    now_ms = await request.app.state.storage.now_ms()
+    now_ms = await _get_time_ms(request)
 
     return PingResponse(
         message="pong",

@@ -26,6 +26,7 @@ from app.api.routes_demo import router as demo_router
 from app.api.routes_health import router as health_router
 from app.api.routes_policies import router as policies_router
 from app.config import Settings, get_settings
+from app.core.circuit_breaker import CircuitBreaker, CircuitBreakerStorage
 from app.core.clock import Clock, SystemClock
 from app.core.errors import ContentionExhausted, InvalidIdentity, StorageUnavailable
 from app.core.limiter import LimiterFactory, get_default_limiter_factory
@@ -41,6 +42,8 @@ logger = logging.getLogger("app.main")
 def create_app(
     settings: Settings | None = None,
     storage: Storage | None = None,
+    fallback_storage: Storage | None = None,
+    circuit_breaker: CircuitBreaker | None = None,
     policy_registry: PolicyRegistry | None = None,
     limiter_factory: LimiterFactory | None = None,
     observer: Observer | None = None,
@@ -51,6 +54,8 @@ def create_app(
     app_clock = clock or SystemClock()
     app_observer = observer or NullObserver()
     app_factory = limiter_factory or get_default_limiter_factory()
+    app_breaker = circuit_breaker or CircuitBreaker(clock=app_clock, observer=app_observer)
+    app_fallback = fallback_storage or MemoryStorage(clock=app_clock)
 
     # 1. Policies
     if policy_registry is not None:
@@ -76,8 +81,10 @@ def create_app(
                 r_storage = RedisStorage(url=app_settings.redis_url)
                 # Verify Redis connectivity
                 await r_storage.client.ping()
-                app.state.storage = r_storage
-                logger.info("Connected to Redis at %s", app_settings.redis_url)
+                app.state.storage = CircuitBreakerStorage(r_storage, app_breaker)
+                logger.info(
+                    "Connected to Redis at %s (wrapped with CircuitBreaker)", app_settings.redis_url
+                )
             except Exception as exc:
                 logger.warning(
                     "Redis unavailable at %s (%s). Falling back to MemoryStorage.",
@@ -104,6 +111,8 @@ def create_app(
     app.state.policy_registry = registry
     app.state.limiter_factory = app_factory
     app.state.observer = app_observer
+    app.state.circuit_breaker = app_breaker
+    app.state.fallback_storage = app_fallback
     if storage is not None:
         app.state.storage = storage
 

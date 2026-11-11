@@ -73,8 +73,14 @@ async def enforce_rate_limit(
     storage: Storage = request.app.state.storage
     observer = getattr(request.app.state, "observer", None) or NullObserver()
     factory: LimiterFactory = request.app.state.limiter_factory
+    fallback_storage: Storage | None = getattr(request.app.state, "fallback_storage", None)
 
-    limiter: Limiter = factory.create(policy, storage, observer)
+    limiter: Limiter = factory.create_resilient(
+        policy,
+        storage,
+        fallback_storage=fallback_storage,
+        observer=observer,
+    )
     key = build_key(policy_id, subject.kind, subject.identity, policy.algorithm)
 
     start_time = time.perf_counter()

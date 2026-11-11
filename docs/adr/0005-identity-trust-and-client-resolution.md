@@ -41,3 +41,4 @@ We implement a three-tiered identity extraction hierarchy with strict proxy vali
 
 ### Negative / Trade-offs
 - Misconfiguration of `TRUSTED_PROXIES` in production could result in all clients sharing the proxy's IP if the proxy IP is omitted from the trusted list. Documentation and `.env.example` must highlight this setting.
+
