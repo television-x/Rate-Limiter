@@ -23,6 +23,10 @@ from app.core.models import Algorithm, IdentityKind
 _HASH_LENGTH = 16
 
 
+# How do we prevent malicious client
+# input from breaking our key format or bloating Redis memory?"
+
+
 def _hash_identity(identity: str) -> str:
     """Hash an identity string with truncated SHA-256.
 
@@ -36,6 +40,10 @@ def _hash_identity(identity: str) -> str:
     """
     digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()
     return digest[:_HASH_LENGTH]
+
+
+# "How do we construct a globally unique key that prevents different users,
+#  IP addresses, algorithms, or policies from accidentally overwriting each other?"
 
 
 def build_key(

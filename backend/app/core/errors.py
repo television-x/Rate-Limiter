@@ -22,6 +22,7 @@ class StorageUnavailable(RateLimiterError):
         self.message = message
 
 
+# What happens if optimistic retries are exhausted?
 class ContentionExhausted(RateLimiterError):
     """Raised when optimistic transaction retries are exhausted.
 
@@ -35,13 +36,16 @@ class ContentionExhausted(RateLimiterError):
         key: str,
         attempts: int,
         message: str = "Transaction retry limit exhausted",
+        algorithm: str = "",
     ) -> None:
         super().__init__(message)
         self.key = key
         self.attempts = attempts
+        self.algorithm = algorithm or key
         self.message = message
 
 
+# What happens if a policy is misconfigured?
 class InvalidPolicy(RateLimiterError):
     """Raised when a rate-limit policy fails validation.
 
@@ -55,6 +59,7 @@ class InvalidPolicy(RateLimiterError):
         self.reason = reason
 
 
+# What happens if identity is invalid?
 class InvalidIdentity(RateLimiterError):
     """Raised when a client identity is malformed.
 

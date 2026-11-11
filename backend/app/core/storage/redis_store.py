@@ -20,10 +20,126 @@ from __future__ import annotations
 from typing import Any
 
 import redis.asyncio as aioredis
+from redis.asyncio.client import Pipeline
 from redis.asyncio.connection import ConnectionPool
+from redis.exceptions import WatchError
 
 from app.core.clock import Clock
 from app.core.storage.base import Storage, Transaction
+
+
+class RedisTransaction:
+    """Optimistic transaction for Redis using WATCH / MULTI / EXEC.
+
+    Operates over a dedicated Redis pipeline connection. Commands before MULTI
+    (reads) execute immediately under the WATCH guarantee. Commands after MULTI
+    (writes) queue in the pipeline and commit atomically on commit().
+    """
+
+    def __init__(self, pipe: Pipeline[Any]) -> None:
+        self._pipe = pipe
+        self._explicit_multi = False
+        self._completed = False
+
+    async def get(self, key: str) -> str | None:
+        """Read a key's value under the watch guarantee."""
+        raw = await self._pipe.get(key)
+        if raw is None:
+            return None
+        if isinstance(raw, bytes):
+            return raw.decode("utf-8")
+        return str(raw)
+
+    async def hgetall(self, key: str) -> dict[str, str]:
+        """Read all fields of a hash key under the watch guarantee."""
+        raw = await self._pipe.hgetall(key)
+        if not raw:
+            return {}
+        result: dict[str, str] = {}
+        for k, v in raw.items():
+            k_str = k.decode("utf-8") if isinstance(k, bytes) else str(k)
+            v_str = v.decode("utf-8") if isinstance(v, bytes) else str(v)
+            result[k_str] = v_str
+        return result
+
+    async def zrangebyscore(self, key: str, min_score: float, max_score: float) -> list[str]:
+        """Read sorted set members in a score range under the watch guarantee."""
+        raw = await self._pipe.zrangebyscore(key, min_score, max_score)
+        if not raw:
+            return []
+        return [m.decode("utf-8") if isinstance(m, bytes) else str(m) for m in raw]
+
+    def _ensure_multi(self) -> None:
+        """Ensure the pipeline has entered explicit MULTI mode before queuing writes."""
+        if not self._explicit_multi:
+            self._pipe.multi()
+            self._explicit_multi = True
+
+    def set(self, key: str, value: str, px: int | None = None) -> None:
+        """Queue a SET command in the transaction."""
+        self._ensure_multi()
+        self._pipe.set(key, value, px=px)
+
+    def hset(self, key: str, mapping: dict[str, str]) -> None:
+        """Queue an HSET command in the transaction."""
+        self._ensure_multi()
+        self._pipe.hset(key, mapping=mapping)  # type: ignore[arg-type]
+
+    def pexpire(self, key: str, ms: int) -> None:
+        """Queue a PEXPIRE command in the transaction."""
+        self._ensure_multi()
+        self._pipe.pexpire(key, ms)
+
+    def zadd(self, key: str, mapping: dict[str, float]) -> None:
+        """Queue a ZADD command in the transaction."""
+        self._ensure_multi()
+        self._pipe.zadd(key, mapping)  # type: ignore[arg-type]
+
+    def zremrangebyscore(self, key: str, min_score: float, max_score: float) -> None:
+        """Queue a ZREMRANGEBYSCORE command in the transaction."""
+        self._ensure_multi()
+        self._pipe.zremrangebyscore(key, min_score, max_score)
+
+    async def commit(self) -> bool:
+        """Execute all queued commands atomically.
+
+        Returns:
+            True if committed successfully without conflicts.
+            False if a watched key was modified (WatchError) or commit aborted.
+        """
+        if self._completed:
+            return False
+        try:
+            if not self._explicit_multi:
+                # No write commands were queued
+                return True
+            try:
+                res = await self._pipe.execute()
+                return res is not None
+            except WatchError:
+                return False
+        finally:
+            self._completed = True
+            await self._pipe.reset()
+
+    async def abort(self) -> None:
+        """Abort the transaction and release connection and watched keys."""
+        if not self._completed:
+            self._completed = True
+            await self._pipe.reset()
+
+    async def __aenter__(self) -> RedisTransaction:
+        """Enter transaction context."""
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
+        """Exit transaction context, aborting if uncommitted."""
+        await self.abort()
 
 
 class RedisStorage(Storage):
@@ -125,10 +241,15 @@ class RedisStorage(Storage):
         return int(await self._client.pttl(key))
 
     async def optimistic(self, watch_keys: list[str]) -> Transaction:
-        """Optimistic transaction via WATCH/MULTI/EXEC (Phase 5)."""
-        raise NotImplementedError(
-            "Optimistic WATCH transactions for Redis are implemented in Phase 5."
-        )
+        """Begin an optimistic transaction watching the specified keys.
+
+        Uses a dedicated Redis pipeline connection. Watches watch_keys immediately.
+        Commands queued after MULTI commit atomically on commit().
+        """
+        pipe = self._client.pipeline()
+        if watch_keys:
+            await pipe.watch(*watch_keys)
+        return RedisTransaction(pipe)
 
     async def close(self) -> None:
         """Close Redis connection and disconnect pool."""

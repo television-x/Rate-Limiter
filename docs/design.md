@@ -16,21 +16,21 @@ Recorded at Phase 0 start. Updated as phases complete.
 | `.env.example` | **exists** | P0 | |
 | `.pre-commit-config.yaml` | **exists** | P0 | |
 | `backend/tests/test_smoke.py` | **exists** | P0 | Trivial smoke test |
-| `backend/app/__init__.py` | proposed | P1+ | App package |
-| `backend/app/core/models.py` | proposed | P1 | Policy, Decision, Subject |
-| `backend/app/core/errors.py` | proposed | P1 | Typed error classes |
-| `backend/app/core/clock.py` | proposed | P1 | Clock protocol and implementations |
-| `backend/app/core/observer.py` | proposed | P1 | Observer protocol |
-| `backend/app/core/key_builder.py` | proposed | P1 | Collision-safe key construction |
-| `backend/app/core/storage/base.py` | proposed | P1 | Storage contract with atomicity docs |
-| `backend/app/core/storage/memory.py` | proposed | P1 | In-memory storage |
-| `backend/app/core/limiter.py` | proposed | P2 | Limiter ABC and factory |
-| `backend/app/core/algorithms/fixed_window.py` | proposed | P2 | Fixed window algorithm |
-| `backend/app/core/algorithms/token_bucket.py` | proposed | P3 | Token bucket algorithm |
-| `backend/app/core/algorithms/sliding_window_log.py` | proposed | P3 | Sliding window log |
-| `backend/app/core/algorithms/sliding_window_counter.py` | proposed | P3 | Sliding window counter |
-| `backend/app/core/storage/redis_store.py` | proposed | P4/P5 | Redis storage adapter |
-| `backend/app/core/storage/retry.py` | proposed | P5 | Bounded retry with jitter |
+| `backend/app/__init__.py` | **exists** | P1 | App package |
+| `backend/app/core/models.py` | **exists** | P1 | Policy, Decision, Subject |
+| `backend/app/core/errors.py` | **exists** | P1 | Typed error classes |
+| `backend/app/core/clock.py` | **exists** | P1 | Clock protocol and implementations |
+| `backend/app/core/observer.py` | **exists** | P1 | Observer protocol |
+| `backend/app/core/key_builder.py` | **exists** | P1 | Collision-safe key construction |
+| `backend/app/core/storage/base.py` | **exists** | P1 | Storage contract with atomicity docs |
+| `backend/app/core/storage/memory.py` | **exists** | P1 | In-memory storage |
+| `backend/app/core/limiter.py` | **exists** | P2 | Limiter ABC and factory |
+| `backend/app/core/algorithms/fixed_window.py` | **exists** | P2 | Fixed window algorithm |
+| `backend/app/core/algorithms/token_bucket.py` | **exists** | P3 | Token bucket algorithm |
+| `backend/app/core/algorithms/sliding_window_log.py` | **exists** | P3 | Sliding window log |
+| `backend/app/core/algorithms/sliding_window_counter.py` | **exists** | P3 | Sliding window counter |
+| `backend/app/core/storage/redis_store.py` | **exists** | P4/P5 | Redis storage adapter (atomic & optimistic) |
+| `backend/app/core/storage/retry.py` | **exists** | P5 | Bounded retry with jitter |
 | `backend/app/core/failure_policy.py` | proposed | P7 | Failure policy resolution |
 | `backend/app/core/circuit_breaker.py` | proposed | P7 | Circuit breaker |
 | `backend/app/main.py` | proposed | P6 | FastAPI app factory |
@@ -43,12 +43,14 @@ Recorded at Phase 0 start. Updated as phases complete.
 | `backend/app/services/stats.py` | proposed | P9 | Stats service |
 | `backend/app/api/routes_admin.py` | proposed | P9 | Admin API |
 | `backend/Dockerfile` | proposed | P6 | Backend container |
-| `docker-compose.yml` | proposed | P4/P10 | Compose deployment |
+| `docker-compose.yml` | **exists** | P4 | Compose deployment (Redis service) |
 | `infra/nginx/nginx.conf` | proposed | P10 | Load balancer config |
 | `infra/prometheus/prometheus.yml` | proposed | P8 | Prometheus config |
 | `frontend/` | proposed | P11 | React dashboard |
 | `benchmarks/` | proposed | P12 | k6 benchmark scripts |
-| `docs/algorithms.md` | proposed | P3 | Algorithm documentation |
+| `docs/algorithms.md` | **exists** | P3 | Algorithm documentation |
+| `docs/adr/0002-storage-contract-and-time-source.md` | **exists** | P4 | ADR on storage contract and time source |
+| `docs/adr/0003-strict-sliding-log-and-optimistic-locking.md` | **exists** | P5 | ADR on strict sliding log and optimistic locking |
 | `docs/operations.md` | proposed | P10 | Operations guide |
 | `docs/benchmarks.md` | proposed | P12 | Benchmark results |
 | `docs/openapi.json` | proposed | P9 | API contract snapshot |

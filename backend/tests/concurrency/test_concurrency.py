@@ -14,6 +14,8 @@ from tests.concurrency.harness import run_concurrent_requests
 
 from app.core.algorithms.fixed_window import FixedWindowLimiter
 from app.core.algorithms.sliding_window_counter import SlidingWindowCounterLimiter
+from app.core.algorithms.sliding_window_log import SlidingWindowLogLimiter
+from app.core.algorithms.token_bucket import TokenBucketLimiter
 from app.core.models import Algorithm, Policy
 from app.core.storage.memory import MemoryStorage
 from app.core.storage.redis_store import RedisStorage
@@ -122,3 +124,96 @@ class TestSlidingCounterConcurrency:
 
         allowed = sum(1 for d in results if d.allowed)
         assert allowed <= 50, f"Expected <= 50 allowed, got {allowed}"
+
+
+@pytest.mark.concurrency
+class TestTokenBucketConcurrency:
+    """Concurrency verification for Token Bucket under high contention (Phase 5)."""
+
+    async def test_token_bucket_memory_exact_limit(self, memory_store: MemoryStorage) -> None:
+        """Memory store: N=200 concurrent tasks at C=50 gives exactly 50 allowed and no negative tokens."""
+        policy = Policy(
+            id="p-tb-mem-conc",
+            algorithm=Algorithm.TOKEN_BUCKET,
+            capacity=50,
+            refill_per_sec=0.0001,  # effectively zero refill during test
+        )
+        limiter = TokenBucketLimiter(policy, memory_store)
+        key = "rl:v1:{tb|user:conc_mem}:token_bucket"
+
+        results = await run_concurrent_requests(limiter, key, count=200)
+
+        allowed = sum(1 for d in results if d.allowed)
+        denied = sum(1 for d in results if not d.allowed)
+
+        assert allowed == 50, f"Expected exactly 50 allowed, got {allowed}"
+        assert denied == 150
+        # Tokens must never be negative
+        for d in results:
+            if d.remaining is not None:
+                assert d.remaining >= 0, f"Remaining tokens became negative: {d.remaining}"
+
+    async def test_token_bucket_redis_exact_limit(self, redis_store: RedisStorage) -> None:
+        """Redis store: N=200 concurrent tasks at C=50 gives exactly 50 allowed via WATCH transactions."""
+        policy = Policy(
+            id="p-tb-redis-conc",
+            algorithm=Algorithm.TOKEN_BUCKET,
+            capacity=50,
+            refill_per_sec=0.0001,
+        )
+        limiter = TokenBucketLimiter(policy, redis_store)
+        key = "rl:v1:{tb|user:conc_redis}:token_bucket"
+
+        results = await run_concurrent_requests(limiter, key, count=200)
+
+        allowed = sum(1 for d in results if d.allowed)
+        denied = sum(1 for d in results if not d.allowed)
+
+        assert allowed == 50, f"Expected exactly 50 allowed, got {allowed}"
+        assert denied == 150
+        for d in results:
+            if d.remaining is not None:
+                assert d.remaining >= 0, f"Remaining tokens became negative: {d.remaining}"
+
+
+@pytest.mark.concurrency
+class TestSlidingLogConcurrency:
+    """Concurrency verification for Sliding Window Log under high contention (Phase 5)."""
+
+    async def test_sliding_log_memory_exact_limit(self, memory_store: MemoryStorage) -> None:
+        """Memory store: N=200 concurrent tasks at L=50 gives exactly 50 allowed."""
+        policy = Policy(
+            id="p-swl-mem-conc",
+            algorithm=Algorithm.SLIDING_WINDOW_LOG,
+            limit=50,
+            window_ms=60_000,
+        )
+        limiter = SlidingWindowLogLimiter(policy, memory_store)
+        key = "rl:v1:{swl|user:conc_mem}:sliding_log"
+
+        results = await run_concurrent_requests(limiter, key, count=200)
+
+        allowed = sum(1 for d in results if d.allowed)
+        denied = sum(1 for d in results if not d.allowed)
+
+        assert allowed == 50, f"Expected exactly 50 allowed, got {allowed}"
+        assert denied == 150
+
+    async def test_sliding_log_redis_exact_limit(self, redis_store: RedisStorage) -> None:
+        """Redis store: N=200 concurrent tasks at L=50 gives exactly 50 allowed via WATCH transactions."""
+        policy = Policy(
+            id="p-swl-redis-conc",
+            algorithm=Algorithm.SLIDING_WINDOW_LOG,
+            limit=50,
+            window_ms=60_000,
+        )
+        limiter = SlidingWindowLogLimiter(policy, redis_store)
+        key = "rl:v1:{swl|user:conc_redis}:sliding_log"
+
+        results = await run_concurrent_requests(limiter, key, count=200)
+
+        allowed = sum(1 for d in results if d.allowed)
+        denied = sum(1 for d in results if not d.allowed)
+
+        assert allowed == 50, f"Expected exactly 50 allowed, got {allowed}"
+        assert denied == 150

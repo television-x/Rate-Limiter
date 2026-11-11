@@ -130,6 +130,26 @@ class Transaction(Protocol):
         """
         ...
 
+    async def abort(self) -> None:
+        """Abort the transaction and release any watched keys or connection state.
+
+        Idempotent: safe to call even if commit() has already executed.
+        """
+        ...
+
+    async def __aenter__(self) -> Transaction:
+        """Enter transaction context."""
+        ...
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
+        """Exit transaction context, aborting if not already committed."""
+        ...
+
 
 class Storage(ABC):
     """Abstract storage backend for rate limiting.

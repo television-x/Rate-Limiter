@@ -190,11 +190,6 @@ class TestDecr:
 class TestOptimistic:
     """Verify optimistic transaction behavior."""
 
-    @pytest.fixture(autouse=True)
-    def skip_redis_phase4(self, store: Storage) -> None:
-        if type(store).__name__ == "RedisStorage":
-            pytest.skip("Optimistic WATCH transactions for Redis are implemented in Phase 5")
-
     async def test_commit_succeeds_when_no_conflict(self, store: Storage) -> None:
         """Transaction commits when watched keys are unchanged."""
         txn = await store.optimistic(["test:key"])

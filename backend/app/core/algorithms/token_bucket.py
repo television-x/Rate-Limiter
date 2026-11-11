@@ -24,6 +24,7 @@ from app.core.limiter import Limiter
 from app.core.models import Accuracy, Algorithm, Decision, DecisionReason, Policy
 from app.core.observer import Observer
 from app.core.storage.base import Storage
+from app.core.storage.retry import DEFAULT_MAX_ATTEMPTS, run_with_retry
 
 # We store tokens as milli-tokens (1 token = 1000 milli-tokens)
 # to avoid floating-point drift over many refill operations.
@@ -44,12 +45,14 @@ class TokenBucketLimiter(Limiter):
         policy: Policy,
         storage: Storage,
         observer: Observer | None = None,
+        max_retries: int = DEFAULT_MAX_ATTEMPTS,
     ) -> None:
         super().__init__(policy, storage, observer)
         assert policy.algorithm == Algorithm.TOKEN_BUCKET
         assert policy.capacity is not None
         assert policy.refill_per_sec is not None
         self._capacity: int = policy.capacity
+        self._max_retries: int = max_retries
         # Convert refill_per_sec to milli-tokens per ms
         self._refill_rate_milli_per_ms: float = (policy.refill_per_sec * _MILLI) / 1000.0
         # TTL: time to fully refill from 0, plus grace
@@ -58,107 +61,132 @@ class TokenBucketLimiter(Limiter):
     async def check(self, key: str, cost: int = 1) -> Decision:
         """Check rate limit using the token bucket algorithm.
 
-        Uses optimistic transaction:
+        Uses optimistic transaction with bounded retries:
         1. Watch the bucket hash key
         2. Read current state (tokens, last_refill_ms)
         3. Compute refilled tokens
         4. If enough: deduct and commit
-        5. If denied: no write (no conflict possible)
+        5. If denied: abort transaction (no write, no conflict possible)
+        6. On conflict: retry up to max_retries with jitter
         """
-        now_ms = await self._storage.now_ms()
 
-        txn = await self._storage.optimistic([key])
-        state = await txn.hgetall(key)
+        async def _attempt(attempt_idx: int) -> tuple[bool, Decision]:
+            now_ms = await self._storage.now_ms()
 
-        # Parse stored state or initialize
-        if state:
-            stored_milli = int(state.get("tokens_milli", str(self._capacity * _MILLI)))
-            last_ms = int(state.get("last_refill_ms", str(now_ms)))
-        else:
-            stored_milli = self._capacity * _MILLI
-            last_ms = now_ms
+            txn = await self._storage.optimistic([key])
+            try:
+                state = await txn.hgetall(key)
 
-        # Compute refill
-        elapsed_ms = max(0, now_ms - last_ms)
-        refilled_milli = int(elapsed_ms * self._refill_rate_milli_per_ms)
-        current_milli = min(self._capacity * _MILLI, stored_milli + refilled_milli)
+                # Parse stored state or initialize
+                if state:
+                    stored_milli = int(state.get("tokens_milli", str(self._capacity * _MILLI)))
+                    last_ms = int(state.get("last_refill_ms", str(now_ms)))
+                else:
+                    stored_milli = self._capacity * _MILLI
+                    last_ms = now_ms
 
-        cost_milli = cost * _MILLI
+                # Compute refill
+                elapsed_ms = max(0, now_ms - last_ms)
+                refilled_milli = int(elapsed_ms * self._refill_rate_milli_per_ms)
+                current_milli = min(self._capacity * _MILLI, stored_milli + refilled_milli)
 
-        if current_milli >= cost_milli:
-            # Allowed: deduct tokens and commit
-            new_milli = current_milli - cost_milli
-            txn.hset(
-                key,
-                {
-                    "tokens_milli": str(new_milli),
-                    "last_refill_ms": str(now_ms),
-                },
-            )
-            txn.pexpire(key, self._ttl_ms)
+                cost_milli = cost * _MILLI
 
-            committed = await txn.commit()
-            if not committed:
-                # Conflict: someone else modified the key.
-                # For simplicity in the memory store, we retry internally.
-                # The retry.py module (Phase 5) will handle this properly.
-                # For now, report the conflict and try again.
-                self._observer.on_txn_conflict(Algorithm.TOKEN_BUCKET.value)
-                return await self.check(key, cost)
+                if current_milli >= cost_milli:
+                    # Allowed: deduct tokens and commit
+                    new_milli = current_milli - cost_milli
+                    txn.hset(
+                        key,
+                        {
+                            "tokens_milli": str(new_milli),
+                            "last_refill_ms": str(now_ms),
+                        },
+                    )
+                    txn.pexpire(key, self._ttl_ms)
 
-            remaining = new_milli // _MILLI
-            # Time to refill one token
-            retry_ms = (
-                int(_MILLI / self._refill_rate_milli_per_ms)
-                if self._refill_rate_milli_per_ms > 0
-                else None
-            )
-            # Time to fully refill
-            deficit_milli = (self._capacity * _MILLI) - new_milli
-            reset_ms = (
-                int(deficit_milli / self._refill_rate_milli_per_ms)
-                if self._refill_rate_milli_per_ms > 0
-                else None
-            )
+                    committed = await txn.commit()
+                    if not committed:
+                        # Conflict: someone else modified the key
+                        dummy = Decision(
+                            allowed=False,
+                            limit=self._capacity,
+                            remaining=0,
+                            retry_after_ms=None,
+                            reset_after_ms=None,
+                            algorithm=Algorithm.TOKEN_BUCKET,
+                            reason=DecisionReason.LIMIT_EXCEEDED,
+                            accuracy=Accuracy.EXACT,
+                        )
+                        return False, dummy
 
-            decision = Decision(
-                allowed=True,
-                limit=self._capacity,
-                remaining=remaining,
-                retry_after_ms=None,
-                reset_after_ms=reset_ms,
-                algorithm=Algorithm.TOKEN_BUCKET,
-                reason=DecisionReason.ALLOWED,
-                accuracy=Accuracy.EXACT,
-            )
-        else:
-            # Denied: do NOT write state (no conflict risk)
-            # No need to commit the transaction
+                    remaining = new_milli // _MILLI
+                    # Time to refill one token
+                    retry_ms = (
+                        int(_MILLI / self._refill_rate_milli_per_ms)
+                        if self._refill_rate_milli_per_ms > 0
+                        else None
+                    )
+                    # Time to fully refill
+                    deficit_milli = (self._capacity * _MILLI) - new_milli
+                    reset_ms = (
+                        int(deficit_milli / self._refill_rate_milli_per_ms)
+                        if self._refill_rate_milli_per_ms > 0
+                        else None
+                    )
 
-            remaining = current_milli // _MILLI
-            # Time until enough tokens refill for this cost
-            deficit_milli = cost_milli - current_milli
-            retry_ms = (
-                int(deficit_milli / self._refill_rate_milli_per_ms) + 1
-                if self._refill_rate_milli_per_ms > 0
-                else None
-            )
-            reset_ms = (
-                int((self._capacity * _MILLI - current_milli) / self._refill_rate_milli_per_ms)
-                if self._refill_rate_milli_per_ms > 0
-                else None
-            )
+                    decision = Decision(
+                        allowed=True,
+                        limit=self._capacity,
+                        remaining=remaining,
+                        retry_after_ms=None,
+                        reset_after_ms=reset_ms,
+                        algorithm=Algorithm.TOKEN_BUCKET,
+                        reason=DecisionReason.ALLOWED,
+                        accuracy=Accuracy.EXACT,
+                    )
+                    self._observer.on_decision(self._policy.id, decision)
+                    return True, decision
+                else:
+                    # Denied: do NOT write state (no conflict risk)
+                    await txn.abort()
 
-            decision = Decision(
-                allowed=False,
-                limit=self._capacity,
-                remaining=remaining,
-                retry_after_ms=retry_ms,
-                reset_after_ms=reset_ms,
-                algorithm=Algorithm.TOKEN_BUCKET,
-                reason=DecisionReason.LIMIT_EXCEEDED,
-                accuracy=Accuracy.EXACT,
-            )
+                    remaining = current_milli // _MILLI
+                    # Time until enough tokens refill for this cost
+                    deficit_milli = cost_milli - current_milli
+                    retry_ms = (
+                        int(deficit_milli / self._refill_rate_milli_per_ms) + 1
+                        if self._refill_rate_milli_per_ms > 0
+                        else None
+                    )
+                    reset_ms = (
+                        int(
+                            (self._capacity * _MILLI - current_milli)
+                            / self._refill_rate_milli_per_ms
+                        )
+                        if self._refill_rate_milli_per_ms > 0
+                        else None
+                    )
 
-        self._observer.on_decision(self._policy.id, decision)
-        return decision
+                    decision = Decision(
+                        allowed=False,
+                        limit=self._capacity,
+                        remaining=remaining,
+                        retry_after_ms=retry_ms,
+                        reset_after_ms=reset_ms,
+                        algorithm=Algorithm.TOKEN_BUCKET,
+                        reason=DecisionReason.LIMIT_EXCEEDED,
+                        accuracy=Accuracy.EXACT,
+                    )
+                    self._observer.on_decision(self._policy.id, decision)
+                    return True, decision
+            except Exception:
+                await txn.abort()
+                raise
+
+        return await run_with_retry(
+            _attempt,
+            key=key,
+            algorithm=Algorithm.TOKEN_BUCKET.value,
+            observer=self._observer,
+            max_attempts=self._max_retries,
+        )

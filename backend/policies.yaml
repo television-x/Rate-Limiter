@@ -1,0 +1,55 @@
+policies:
+  - id: "default"
+    algorithm: "fixed_window"
+    limit: 60
+    window_ms: 60000
+    cost_default: 1
+    on_failure: "open"
+    on_contention: "reject"
+    scope: ["ip"]
+
+  - id: "strict"
+    algorithm: "fixed_window"
+    limit: 5
+    window_ms: 10000
+    cost_default: 1
+    on_failure: "open"
+    on_contention: "reject"
+    scope: ["ip"]
+
+  - id: "fixed_window"
+    algorithm: "fixed_window"
+    limit: 10
+    window_ms: 10000
+    cost_default: 1
+    on_failure: "open"
+    on_contention: "reject"
+    scope: ["ip"]
+
+  - id: "token_bucket"
+    algorithm: "token_bucket"
+    capacity: 10
+    refill_per_sec: 2.0
+    cost_default: 1
+    on_failure: "open"
+    on_contention: "reject"
+    scope: ["ip"]
+
+  - id: "sliding_window_log"
+    algorithm: "sliding_window_log"
+    limit: 10
+    window_ms: 10000
+    cost_default: 1
+    on_failure: "open"
+    on_contention: "reject"
+    scope: ["ip"]
+
+  - id: "sliding_window_counter"
+    algorithm: "sliding_window_counter"
+    limit: 10
+    window_ms: 10000
+    cost_default: 1
+    on_failure: "open"
+    on_contention: "reject"
+    scope: ["ip"]
+

@@ -117,6 +117,27 @@ class MemoryTransaction:
 
             return True
 
+    async def abort(self) -> None:
+        """Abort the transaction.
+
+        No-op for in-memory storage since no network connection or locks
+        are held between operations.
+        """
+        self._commands.clear()
+
+    async def __aenter__(self) -> MemoryTransaction:
+        """Enter transaction context."""
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
+        """Exit transaction context."""
+        await self.abort()
+
 
 class MemoryStorage(Storage):
     """In-memory storage backend with conflict injection.
