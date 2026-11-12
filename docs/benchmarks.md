@@ -123,3 +123,4 @@ cd backend && .venv/bin/uvicorn app.main:app --port 8000 &
 ```
 
 Raw metrics will be generated in `benchmarks/results/<date>-<sha>/summary.json`.
+

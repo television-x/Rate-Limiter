@@ -54,6 +54,8 @@ Recorded at Phase 0 start. Updated as phases complete.
 | `docs/adr/0004-dependency-vs-middleware.md` | **exists** | P6 | ADR on dependency vs middleware separation |
 | `docs/adr/0005-identity-trust-and-client-resolution.md` | **exists** | P6 | ADR on identity trust and client resolution |
 | `docs/adr/0006-failure-policy-and-circuit-breaker.md` | **exists** | P7 | ADR on failure handling and circuit breaker |
+| `README.md` | **exists** | P13 | Root documentation, architecture, quick start |
+| `docs/adr/0007-polling-vs-sse-and-websockets.md` | **exists** | P11 | ADR on polling vs SSE/WebSockets for dashboard |
 | `docs/operations.md` | **exists** | P10 | Operations guide |
 | `docs/benchmarks.md` | **exists** | P12 | Benchmark results and analysis |
 | `docs/openapi.json` | **exists** | P9 | API contract snapshot |

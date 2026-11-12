@@ -53,4 +53,3 @@ async def verify_admin_token(
         )
 
     return credentials.credentials
-
