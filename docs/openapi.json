@@ -1,0 +1,912 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Distributed Rate Limiter",
+    "description": "Distributed API rate limiter demonstrating 4 algorithms with shared Redis state",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Healthz",
+        "description": "Process liveness probe.",
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Healthz Healthz Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/readyz": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Readyz",
+        "description": "Readiness probe checking storage connectivity (cached ~1s).",
+        "operationId": "readyz_readyz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/demo/ping": {
+      "get": {
+        "tags": [
+          "demo"
+        ],
+        "summary": "Demo Ping",
+        "description": "Default demo endpoint with standard rate limit.",
+        "operationId": "demo_ping_api_v1_demo_ping_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/demo/strict": {
+      "get": {
+        "tags": [
+          "demo"
+        ],
+        "summary": "Demo Strict",
+        "description": "Strict demo endpoint with aggressive rate limit.",
+        "operationId": "demo_strict_api_v1_demo_strict_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/demo/limited/{algorithm}": {
+      "get": {
+        "tags": [
+          "demo"
+        ],
+        "summary": "Demo Limited By Algorithm",
+        "description": "Demo endpoint targeting a specific algorithm's policy.",
+        "operationId": "demo_limited_by_algorithm_api_v1_demo_limited__algorithm__get",
+        "parameters": [
+          {
+            "name": "algorithm",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Algorithm"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PingResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/policies": {
+      "get": {
+        "tags": [
+          "policies"
+        ],
+        "summary": "List Policies",
+        "description": "Return all effective rate-limiting policies currently loaded.",
+        "operationId": "list_policies_api_v1_policies_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "tags": [
+          "metrics"
+        ],
+        "summary": "Metrics Endpoint",
+        "description": "Scrape endpoint exposing Prometheus metrics in OpenMetrics/Prometheus text format.",
+        "operationId": "metrics_endpoint_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/dependencies": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Check dependency health, storage latency, and breaker state",
+        "description": "Return storage latency and circuit breaker status.\n\nDoes not return any keys, hostnames, or credentials.",
+        "operationId": "get_dependency_health_health_dependencies_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DependencyHealthResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/policies/{id}": {
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Update demo policy configuration within bounded ranges",
+        "description": "Update a demo policy configuration at runtime within strictly bounded ranges.\n\nPersists override to storage and propagates across all application instances.",
+        "operationId": "update_demo_policy_api_v1_admin_policies__id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/stats": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get rolling per-second throughput and top clients for a policy",
+        "description": "Retrieve rolling per-second allowed and rejected counts with top-N client breakdowns.",
+        "operationId": "get_admin_stats_api_v1_admin_stats_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "policy_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Target rate limit policy ID",
+              "title": "Policy Id"
+            },
+            "description": "Target rate limit policy ID"
+          },
+          {
+            "name": "window_s",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 300,
+              "minimum": 1,
+              "description": "Rolling time window in seconds",
+              "default": 60,
+              "title": "Window S"
+            },
+            "description": "Rolling time window in seconds"
+          },
+          {
+            "name": "top_n",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Number of top clients to return",
+              "default": 10,
+              "title": "Top N"
+            },
+            "description": "Number of top clients to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyStatsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/reset": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Reset rate limit state by exact computed key (never SCAN)",
+        "description": "Reset rate limiter state for a client and policy using exact key deletion.\n\nNever performs pattern-matching SCAN operations.",
+        "operationId": "reset_rate_limit_api_v1_admin_reset_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CircuitBreakerInfo": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "consecutive_failures": {
+            "type": "integer",
+            "title": "Consecutive Failures"
+          },
+          "failure_threshold": {
+            "type": "integer",
+            "title": "Failure Threshold"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "consecutive_failures",
+          "failure_threshold"
+        ],
+        "title": "CircuitBreakerInfo",
+        "description": "Circuit breaker status details."
+      },
+      "DependencyHealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "redis": {
+            "$ref": "#/components/schemas/RedisDependencyInfo"
+          },
+          "circuit_breaker": {
+            "$ref": "#/components/schemas/CircuitBreakerInfo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "redis",
+          "circuit_breaker"
+        ],
+        "title": "DependencyHealthResponse",
+        "description": "Health information for external dependencies and circuit breaker."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "PingResponse": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "pong"
+          },
+          "policy_id": {
+            "type": "string",
+            "title": "Policy Id"
+          },
+          "algorithm": {
+            "type": "string",
+            "title": "Algorithm"
+          },
+          "identity": {
+            "type": "string",
+            "title": "Identity"
+          },
+          "identity_kind": {
+            "type": "string",
+            "title": "Identity Kind"
+          },
+          "time_ms": {
+            "type": "integer",
+            "title": "Time Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "policy_id",
+          "algorithm",
+          "identity",
+          "identity_kind",
+          "time_ms"
+        ],
+        "title": "PingResponse",
+        "description": "Response returned by demo ping endpoints."
+      },
+      "PolicyInfo": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "algorithm": {
+            "type": "string",
+            "title": "Algorithm"
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit"
+          },
+          "window_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Window Ms"
+          },
+          "capacity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capacity"
+          },
+          "refill_per_sec": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refill Per Sec"
+          },
+          "cost_default": {
+            "type": "integer",
+            "title": "Cost Default",
+            "default": 1
+          },
+          "on_failure": {
+            "type": "string",
+            "title": "On Failure"
+          },
+          "on_contention": {
+            "type": "string",
+            "title": "On Contention"
+          },
+          "scope": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scope"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "algorithm",
+          "on_failure",
+          "on_contention",
+          "scope"
+        ],
+        "title": "PolicyInfo",
+        "description": "Details of a single rate-limiting policy."
+      },
+      "PolicyListResponse": {
+        "properties": {
+          "policies": {
+            "items": {
+              "$ref": "#/components/schemas/PolicyInfo"
+            },
+            "type": "array",
+            "title": "Policies"
+          }
+        },
+        "type": "object",
+        "required": [
+          "policies"
+        ],
+        "title": "PolicyListResponse",
+        "description": "List of effective policies available in the system."
+      },
+      "PolicyStatsResponse": {
+        "properties": {
+          "policy_id": {
+            "type": "string",
+            "title": "Policy Id"
+          },
+          "window_s": {
+            "type": "integer",
+            "title": "Window S"
+          },
+          "total_allowed": {
+            "type": "integer",
+            "title": "Total Allowed"
+          },
+          "total_rejected": {
+            "type": "integer",
+            "title": "Total Rejected"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/StatsPoint"
+            },
+            "type": "array",
+            "title": "Series"
+          },
+          "top_clients": {
+            "items": {
+              "$ref": "#/components/schemas/TopClientInfo"
+            },
+            "type": "array",
+            "title": "Top Clients"
+          }
+        },
+        "type": "object",
+        "required": [
+          "policy_id",
+          "window_s",
+          "total_allowed",
+          "total_rejected",
+          "series",
+          "top_clients"
+        ],
+        "title": "PolicyStatsResponse",
+        "description": "Aggregated per-second rate limiting metrics and top clients for a policy."
+      },
+      "PolicyUpdateRequest": {
+        "properties": {
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit",
+            "description": "Window limit count (1 to 10,000)"
+          },
+          "window_ms": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 3600000.0,
+                "minimum": 1000.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Window Ms",
+            "description": "Window duration in milliseconds (1,000 to 3,600,000)"
+          },
+          "capacity": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capacity",
+            "description": "Token bucket capacity (1 to 10,000)"
+          },
+          "refill_per_sec": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refill Per Sec",
+            "description": "Token bucket refill rate per second (0.1 to 1,000)"
+          },
+          "cost_default": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Default",
+            "description": "Default cost per request (1 to 1,000)"
+          },
+          "on_failure": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On Failure",
+            "description": "Failure policy mode ('open', 'closed', 'local_fallback')"
+          },
+          "on_contention": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On Contention",
+            "description": "Contention policy mode ('reject', 'allow')"
+          }
+        },
+        "type": "object",
+        "title": "PolicyUpdateRequest",
+        "description": "Payload to update an effective demo policy within bounded ranges."
+      },
+      "RedisDependencyInfo": {
+        "properties": {
+          "connected": {
+            "type": "boolean",
+            "title": "Connected"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "connected"
+        ],
+        "title": "RedisDependencyInfo",
+        "description": "Redis dependency health status and latency (no credentials or keys)."
+      },
+      "ResetRequest": {
+        "properties": {
+          "policy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Id",
+            "description": "Policy ID to reset for the given identity"
+          },
+          "identity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identity",
+            "description": "Client identity to reset (e.g. IP address or user ID)"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "Identity kind ('ip', 'user', 'apikey', 'route')",
+            "default": "ip"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key",
+            "description": "Exact computed storage key to delete (never SCAN)"
+          }
+        },
+        "type": "object",
+        "title": "ResetRequest",
+        "description": "Request payload to clear rate limiter state for a specific client/policy or key."
+      },
+      "StatsPoint": {
+        "properties": {
+          "timestamp_s": {
+            "type": "integer",
+            "title": "Timestamp S"
+          },
+          "allowed": {
+            "type": "integer",
+            "title": "Allowed"
+          },
+          "rejected": {
+            "type": "integer",
+            "title": "Rejected"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timestamp_s",
+          "allowed",
+          "rejected"
+        ],
+        "title": "StatsPoint",
+        "description": "A single time series point representing one second."
+      },
+      "TopClientInfo": {
+        "properties": {
+          "client_hash": {
+            "type": "string",
+            "title": "Client Hash"
+          },
+          "allowed": {
+            "type": "integer",
+            "title": "Allowed"
+          },
+          "rejected": {
+            "type": "integer",
+            "title": "Rejected"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_hash",
+          "allowed",
+          "rejected",
+          "total"
+        ],
+        "title": "TopClientInfo",
+        "description": "Usage summary for a single client identified by its truncated hash."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

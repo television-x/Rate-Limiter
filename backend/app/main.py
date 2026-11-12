@@ -22,6 +22,7 @@ from app.api.errors import (
     rate_limit_exceeded_handler,
     storage_unavailable_handler,
 )
+from app.api.routes_admin import router as admin_router
 from app.api.routes_demo import router as demo_router
 from app.api.routes_health import router as health_router
 from app.api.routes_policies import router as policies_router
@@ -37,6 +38,7 @@ from app.metrics.prometheus import default_observer
 from app.metrics.prometheus import router as metrics_router
 from app.middleware.observability import ObservabilityMiddleware
 from app.policies import PolicyRegistry, load_policies_from_yaml
+from app.services.stats import StatsService
 
 logger = logging.getLogger("app.main")
 
@@ -50,6 +52,7 @@ def create_app(
     limiter_factory: LimiterFactory | None = None,
     observer: Observer | None = None,
     clock: Clock | None = None,
+    stats_service: StatsService | None = None,
 ) -> FastAPI:
     """Create and configure a FastAPI rate limiter application instance."""
     app_settings = settings or get_settings()
@@ -58,6 +61,7 @@ def create_app(
     app_factory = limiter_factory or get_default_limiter_factory()
     app_breaker = circuit_breaker or CircuitBreaker(clock=app_clock, observer=app_observer)
     app_fallback = fallback_storage or MemoryStorage(clock=app_clock)
+    app_stats = stats_service or StatsService()
 
     # 1. Policies
     if policy_registry is not None:
@@ -115,6 +119,7 @@ def create_app(
     app.state.observer = app_observer
     app.state.circuit_breaker = app_breaker
     app.state.fallback_storage = app_fallback
+    app.state.stats_service = app_stats
     if storage is not None:
         app.state.storage = storage
 
@@ -132,6 +137,7 @@ def create_app(
     app.include_router(demo_router)
     app.include_router(policies_router)
     app.include_router(metrics_router)
+    app.include_router(admin_router)
 
     return app
 

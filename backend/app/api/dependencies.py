@@ -67,10 +67,10 @@ async def enforce_rate_limit(
     subject = extract_identity(request, settings)
 
     registry = request.app.state.policy_registry
-    policy = registry.get(policy_id)
+    storage: Storage = request.app.state.storage
+    policy = await registry.get_effective(policy_id, storage=storage)
 
     effective_cost = cost if cost is not None else policy.cost_default
-    storage: Storage = request.app.state.storage
     observer = getattr(request.app.state, "observer", None) or NullObserver()
     factory: LimiterFactory = request.app.state.limiter_factory
     fallback_storage: Storage | None = getattr(request.app.state, "fallback_storage", None)
@@ -90,6 +90,15 @@ async def enforce_rate_limit(
 
     # Notify observer of decision and calculation duration
     observer.on_decision(policy_id, decision, duration_seconds=duration_s)
+
+    # Record metrics in rolling stats service
+    stats_service = getattr(request.app.state, "stats_service", None)
+    if stats_service is not None:
+        stats_service.record_decision(
+            policy_id=policy_id,
+            allowed=decision.allowed,
+            client_id=subject.identity,
+        )
 
     headers = build_rate_limit_headers(decision, policy_id, policy)
 
