@@ -5,5 +5,5 @@ global:
 scrape_configs:
   - job_name: "rate-limiter"
     static_configs:
-      - targets: ["api:8000", "host.docker.internal:8000"]
+      - targets: ["api1:8000", "api2:8000", "api3:8000", "host.docker.internal:8000"]
 

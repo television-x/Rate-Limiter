@@ -1,4 +1,5 @@
 services:
+  # Shared state storage (isolated to backend network only)
   redis:
     image: redis:7-alpine
     container_name: rl-redis
@@ -7,11 +8,114 @@ services:
       - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 1s
-      timeout: 1s
+      interval: 2s
+      timeout: 2s
       retries: 5
     restart: unless-stopped
+    networks:
+      - backend
 
+  # API Replica 1
+  api1:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rl-api-1
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - INSTANCE_NAME=api-1
+      - ADMIN_TOKEN=dev-admin-token
+      - DEMO_MODE=true
+      - TRUSTED_PROXIES=["127.0.0.1", "172.16.0.0/12", "192.168.0.0/16", "10.0.0.0/8"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/readyz').read()"]
+      interval: 3s
+      timeout: 2s
+      retries: 5
+      start_period: 3s
+    stop_grace_period: 15s
+    restart: unless-stopped
+    networks:
+      - edge
+      - backend
+
+  # API Replica 2
+  api2:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rl-api-2
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - INSTANCE_NAME=api-2
+      - ADMIN_TOKEN=dev-admin-token
+      - DEMO_MODE=true
+      - TRUSTED_PROXIES=["127.0.0.1", "172.16.0.0/12", "192.168.0.0/16", "10.0.0.0/8"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/readyz').read()"]
+      interval: 3s
+      timeout: 2s
+      retries: 5
+      start_period: 3s
+    stop_grace_period: 15s
+    restart: unless-stopped
+    networks:
+      - edge
+      - backend
+
+  # API Replica 3
+  api3:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rl-api-3
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - INSTANCE_NAME=api-3
+      - ADMIN_TOKEN=dev-admin-token
+      - DEMO_MODE=true
+      - TRUSTED_PROXIES=["127.0.0.1", "172.16.0.0/12", "192.168.0.0/16", "10.0.0.0/8"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/readyz').read()"]
+      interval: 3s
+      timeout: 2s
+      retries: 5
+      start_period: 3s
+    stop_grace_period: 15s
+    restart: unless-stopped
+    networks:
+      - edge
+      - backend
+
+  # Nginx Load Balancer (round-robin with proxy_next_upstream off)
+  lb:
+    image: nginx:alpine
+    container_name: rl-lb
+    ports:
+      - "8080:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      api1:
+        condition: service_healthy
+      api2:
+        condition: service_healthy
+      api3:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - edge
+
+  # Prometheus monitoring
   prometheus:
     image: prom/prometheus:v2.54.1
     container_name: rl-prometheus
@@ -19,4 +123,20 @@ services:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     ports:
       - "127.0.0.1:9090:9090"
+    depends_on:
+      api1:
+        condition: service_healthy
+      api2:
+        condition: service_healthy
+      api3:
+        condition: service_healthy
     restart: unless-stopped
+    networks:
+      - edge
+      - backend
+
+networks:
+  edge:
+    driver: bridge
+  backend:
+    driver: bridge

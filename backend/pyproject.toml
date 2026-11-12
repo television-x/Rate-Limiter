@@ -74,6 +74,7 @@ markers = [
     "integration: tests requiring Redis",
     "concurrency: multi-task concurrency tests",
     "api: HTTP API tests with httpx",
+    "e2e: end-to-end multi-instance tests",
     "stress: long-running stress tests (manual/nightly)",
 ]
 filterwarnings = [

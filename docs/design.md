@@ -44,7 +44,7 @@ Recorded at Phase 0 start. Updated as phases complete.
 | `backend/app/api/routes_admin.py` | **exists** | P9 | Admin API |
 | `backend/Dockerfile` | **exists** | P6 | Backend container |
 | `docker-compose.yml` | **exists** | P4 | Compose deployment (Redis service) |
-| `infra/nginx/nginx.conf` | proposed | P10 | Load balancer config |
+| `infra/nginx/nginx.conf` | **exists** | P10 | Load balancer config |
 | `infra/prometheus/prometheus.yml` | **exists** | P8 | Prometheus config |
 | `frontend/` | proposed | P11 | React dashboard |
 | `benchmarks/` | proposed | P12 | k6 benchmark scripts |
@@ -54,7 +54,7 @@ Recorded at Phase 0 start. Updated as phases complete.
 | `docs/adr/0004-dependency-vs-middleware.md` | **exists** | P6 | ADR on dependency vs middleware separation |
 | `docs/adr/0005-identity-trust-and-client-resolution.md` | **exists** | P6 | ADR on identity trust and client resolution |
 | `docs/adr/0006-failure-policy-and-circuit-breaker.md` | **exists** | P7 | ADR on failure handling and circuit breaker |
-| `docs/operations.md` | proposed | P10 | Operations guide |
+| `docs/operations.md` | **exists** | P10 | Operations guide |
 | `docs/benchmarks.md` | proposed | P12 | Benchmark results |
 | `docs/openapi.json` | **exists** | P9 | API contract snapshot |
 
