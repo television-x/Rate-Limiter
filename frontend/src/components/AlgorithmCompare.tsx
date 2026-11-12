@@ -139,3 +139,4 @@ export const AlgorithmCompare: React.FC<AlgorithmCompareProps> = ({ apiClient })
     </div>
   );
 };
+

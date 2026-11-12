@@ -160,3 +160,4 @@ export const LiveCounters: React.FC<LiveCountersProps> = ({
     </div>
   );
 };
+

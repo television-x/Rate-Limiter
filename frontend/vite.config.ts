@@ -8,19 +8,19 @@ export default defineConfig({
     port: 3000,
     proxy: {
       "/api": {
-        target: "http://localhost:8080",
+        target: "http://localhost:8000",
         changeOrigin: true,
       },
       "/health": {
-        target: "http://localhost:8080",
+        target: "http://localhost:8000",
         changeOrigin: true,
       },
       "/healthz": {
-        target: "http://localhost:8080",
+        target: "http://localhost:8000",
         changeOrigin: true,
       },
       "/readyz": {
-        target: "http://localhost:8080",
+        target: "http://localhost:8000",
         changeOrigin: true,
       },
     },
@@ -34,3 +34,4 @@ export default defineConfig({
     },
   },
 });
+

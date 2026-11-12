@@ -61,3 +61,4 @@ export const HealthBadge: React.FC<HealthBadgeProps> = ({
     </div>
   );
 };
+

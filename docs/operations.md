@@ -152,3 +152,4 @@ docker compose unpause redis
 1. On the next request after the cooldown window (5 seconds), the circuit breaker enters `half_open` probe state.
 2. The probe succeeds, transitioning the breaker back to `closed`.
 3. Normal distributed rate limiting resumes immediately without restarting any API process.
+

@@ -32,3 +32,4 @@ describe("LatencyChart", () => {
     expect(screen.getByText("1.2 ms")).toBeInTheDocument();
   });
 });
+

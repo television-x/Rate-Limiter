@@ -172,3 +172,4 @@ export const TrafficGenerator: React.FC<TrafficGeneratorProps> = ({
     </div>
   );
 };
+

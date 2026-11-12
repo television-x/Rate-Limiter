@@ -36,3 +36,4 @@ describe("HealthBadge", () => {
     expect(screen.getByText(/closed/i)).toBeInTheDocument();
   });
 });
+

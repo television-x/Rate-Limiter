@@ -58,6 +58,10 @@ docs/site/
 # Agent local configuration
 .agents/
 
+# Redis
+*.rdb
+dump.rdb
+
 # Archives
 *.zip
 *.tar.gz
