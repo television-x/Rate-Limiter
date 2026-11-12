@@ -47,7 +47,7 @@ Recorded at Phase 0 start. Updated as phases complete.
 | `infra/nginx/nginx.conf` | **exists** | P10 | Load balancer config |
 | `infra/prometheus/prometheus.yml` | **exists** | P8 | Prometheus config |
 | `frontend/` | **exists** | P11 | React dashboard |
-| `benchmarks/` | proposed | P12 | k6 benchmark scripts |
+| `benchmarks/` | **exists** | P12 | Benchmark runner & scenario scripts |
 | `docs/algorithms.md` | **exists** | P3 | Algorithm documentation |
 | `docs/adr/0002-storage-contract-and-time-source.md` | **exists** | P4 | ADR on storage contract and time source |
 | `docs/adr/0003-strict-sliding-log-and-optimistic-locking.md` | **exists** | P5 | ADR on strict sliding log and optimistic locking |
@@ -55,7 +55,7 @@ Recorded at Phase 0 start. Updated as phases complete.
 | `docs/adr/0005-identity-trust-and-client-resolution.md` | **exists** | P6 | ADR on identity trust and client resolution |
 | `docs/adr/0006-failure-policy-and-circuit-breaker.md` | **exists** | P7 | ADR on failure handling and circuit breaker |
 | `docs/operations.md` | **exists** | P10 | Operations guide |
-| `docs/benchmarks.md` | proposed | P12 | Benchmark results |
+| `docs/benchmarks.md` | **exists** | P12 | Benchmark results and analysis |
 | `docs/openapi.json` | **exists** | P9 | API contract snapshot |
 
 ## Deferred Items
