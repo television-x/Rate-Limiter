@@ -46,7 +46,7 @@ Recorded at Phase 0 start. Updated as phases complete.
 | `docker-compose.yml` | **exists** | P4 | Compose deployment (Redis service) |
 | `infra/nginx/nginx.conf` | **exists** | P10 | Load balancer config |
 | `infra/prometheus/prometheus.yml` | **exists** | P8 | Prometheus config |
-| `frontend/` | proposed | P11 | React dashboard |
+| `frontend/` | **exists** | P11 | React dashboard |
 | `benchmarks/` | proposed | P12 | k6 benchmark scripts |
 | `docs/algorithms.md` | **exists** | P3 | Algorithm documentation |
 | `docs/adr/0002-storage-contract-and-time-source.md` | **exists** | P4 | ADR on storage contract and time source |

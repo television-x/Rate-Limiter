@@ -96,6 +96,16 @@ services:
       - edge
       - backend
 
+  # Frontend Dashboard
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: rl-frontend
+    restart: unless-stopped
+    networks:
+      - edge
+
   # Nginx Load Balancer (round-robin with proxy_next_upstream off)
   lb:
     image: nginx:alpine
@@ -111,6 +121,8 @@ services:
         condition: service_healthy
       api3:
         condition: service_healthy
+      frontend:
+        condition: service_started
     restart: unless-stopped
     networks:
       - edge
