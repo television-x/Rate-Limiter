@@ -151,6 +151,9 @@ class ResilientLimiter(Limiter):
         try:
             return await self._primary.check(key, cost=cost)
         except StorageUnavailable:
+            on_failure_fn = getattr(self._observer, "on_failure_policy", None)
+            if callable(on_failure_fn):
+                on_failure_fn(self._policy.on_failure.value)
             if self._policy.on_failure == FailureMode.LOCAL_FALLBACK and self._fallback is not None:
                 inner_decision = await self._fallback.check(key, cost=cost)
                 return resolve_storage_failure(self._policy, inner_decision=inner_decision)

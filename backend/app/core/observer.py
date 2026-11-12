@@ -20,50 +20,27 @@ class Observer(Protocol):
 
     All methods are no-ops by default (via the NullObserver
     implementation). The Prometheus metrics adapter (Phase 8)
-    will implement this protocol to emit metrics.
+    implements this protocol to emit metrics.
     """
 
     def on_decision(self, policy_id: str, decision: Decision) -> None:
-        """Called after every rate-limit decision.
-
-        Args:
-            policy_id: The policy that was evaluated.
-            decision: The resulting decision.
-        """
+        """Called after every rate-limit decision."""
         ...
 
     def on_storage_op(self, op: str, seconds: float, ok: bool) -> None:
-        """Called after every storage operation.
-
-        Args:
-            op: The operation name (e.g. "incr_expiring", "optimistic").
-            seconds: Duration of the operation.
-            ok: Whether the operation succeeded.
-        """
+        """Called after every storage operation."""
         ...
 
     def on_txn_conflict(self, algorithm: str) -> None:
-        """Called when an optimistic transaction conflicts (WATCH).
-
-        Args:
-            algorithm: The algorithm that experienced the conflict.
-        """
+        """Called when an optimistic transaction conflicts (WATCH)."""
         ...
 
     def on_txn_retry_exhausted(self, algorithm: str) -> None:
-        """Called when optimistic retries are fully exhausted.
-
-        Args:
-            algorithm: The algorithm that exhausted retries.
-        """
+        """Called when optimistic retries are fully exhausted."""
         ...
 
     def on_breaker_state(self, state: str) -> None:
-        """Called when the circuit breaker changes state.
-
-        Args:
-            state: The new state ("closed", "open", "half_open").
-        """
+        """Called when the circuit breaker changes state."""
         ...
 
 
@@ -74,17 +51,36 @@ class NullObserver:
     All methods do nothing.
     """
 
-    def on_decision(self, policy_id: str, decision: Decision) -> None:
+    def on_decision(
+        self, policy_id: str, decision: Decision, duration_seconds: float = 0.0
+    ) -> None:
         pass
 
-    def on_storage_op(self, op: str, seconds: float, ok: bool) -> None:
+    def on_storage_op(self, op: str, seconds: float, ok: bool, error_type: str = "") -> None:
         pass
 
     def on_txn_conflict(self, algorithm: str) -> None:
+        pass
+
+    def on_txn_attempts(self, algorithm: str, attempts: int) -> None:
         pass
 
     def on_txn_retry_exhausted(self, algorithm: str) -> None:
         pass
 
     def on_breaker_state(self, state: str) -> None:
+        pass
+
+    def on_failure_policy(self, mode: str) -> None:
+        pass
+
+    def on_storage_status(self, up: bool) -> None:
+        pass
+
+    def on_log_entries_seen(self, count: int) -> None:
+        pass
+
+    def on_http_request(
+        self, method: str, route_template: str, status_class: str, duration_seconds: float
+    ) -> None:
         pass

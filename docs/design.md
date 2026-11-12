@@ -39,13 +39,13 @@ Recorded at Phase 0 start. Updated as phases complete.
 | `backend/policies.yaml` | **exists** | P6 | Policy configuration |
 | `backend/app/api/` | **exists** | P6 | HTTP API layer |
 | `backend/app/middleware/` | **exists** | P6/P8 | Observability middleware |
-| `backend/app/metrics/prometheus.py` | proposed | P8 | Prometheus metrics |
+| `backend/app/metrics/prometheus.py` | **exists** | P8 | Prometheus metrics |
 | `backend/app/services/stats.py` | proposed | P9 | Stats service |
 | `backend/app/api/routes_admin.py` | proposed | P9 | Admin API |
 | `backend/Dockerfile` | **exists** | P6 | Backend container |
 | `docker-compose.yml` | **exists** | P4 | Compose deployment (Redis service) |
 | `infra/nginx/nginx.conf` | proposed | P10 | Load balancer config |
-| `infra/prometheus/prometheus.yml` | proposed | P8 | Prometheus config |
+| `infra/prometheus/prometheus.yml` | **exists** | P8 | Prometheus config |
 | `frontend/` | proposed | P11 | React dashboard |
 | `benchmarks/` | proposed | P12 | k6 benchmark scripts |
 | `docs/algorithms.md` | **exists** | P3 | Algorithm documentation |

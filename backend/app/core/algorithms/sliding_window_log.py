@@ -72,6 +72,8 @@ class SlidingWindowLogLimiter(Limiter):
                 # Read all entries in the current window
                 members = await txn.zrangebyscore(key, float(window_start), float(now_ms))
                 current_count = len(members)
+                if hasattr(self._observer, "on_log_entries_seen"):
+                    self._observer.on_log_entries_seen(current_count)
 
                 if current_count + cost <= self._limit:
                     # Allowed: trim old entries and add new ones

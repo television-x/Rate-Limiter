@@ -85,7 +85,11 @@ async def enforce_rate_limit(
 
     start_time = time.perf_counter()
     decision: Decision = await limiter.check(key, cost=effective_cost)
-    duration_ms = (time.perf_counter() - start_time) * 1000
+    duration_s = time.perf_counter() - start_time
+    duration_ms = duration_s * 1000
+
+    # Notify observer of decision and calculation duration
+    observer.on_decision(policy_id, decision, duration_seconds=duration_s)
 
     headers = build_rate_limit_headers(decision, policy_id, policy)
 

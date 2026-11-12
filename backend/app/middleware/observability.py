@@ -52,13 +52,28 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
 
         response.headers["X-Served-By"] = instance_name
 
-        # 4. Server-Timing header
+        # 4. Record HTTP metrics on observer
+        route = request.scope.get("route")
+        route_template = route.path if route is not None else request.url.path
+        status_class = f"{response.status_code // 100}xx"
+        total_seconds = time.perf_counter() - start_time
+
+        observer = getattr(request.app.state, "observer", None)
+        if observer is not None and hasattr(observer, "on_http_request"):
+            observer.on_http_request(
+                method=request.method,
+                route_template=route_template,
+                status_class=status_class,
+                duration_seconds=total_seconds,
+            )
+
+        # 5. Server-Timing header
         server_timings: list[str] = []
         if hasattr(request.state, "rate_limit_duration_ms"):
             dur = request.state.rate_limit_duration_ms
             server_timings.append(f"limiter;dur={dur:.2f}")
 
-        total_dur = (time.perf_counter() - start_time) * 1000
+        total_dur = total_seconds * 1000
         server_timings.append(f"app;dur={total_dur:.2f}")
 
         timing_str = ", ".join(server_timings)

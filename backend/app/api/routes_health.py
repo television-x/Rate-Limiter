@@ -34,6 +34,7 @@ async def readyz(request: Request) -> JSONResponse:
         is_healthy = last_healthy
     else:
         storage = getattr(request.app.state, "storage", None)
+        observer = getattr(request.app.state, "observer", None)
         if storage is None:
             is_healthy = False
         else:
@@ -41,6 +42,10 @@ async def readyz(request: Request) -> JSONResponse:
                 is_healthy = await storage.ping()
             except Exception:
                 is_healthy = False
+
+        if observer is not None and hasattr(observer, "on_storage_status"):
+            observer.on_storage_status(is_healthy)
+
         request.app.state._cached_ready_status = (now, is_healthy)
 
     if is_healthy:

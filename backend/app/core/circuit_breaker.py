@@ -11,6 +11,7 @@ Per AGENTS.md §Phase 7:
 from __future__ import annotations
 
 import enum
+import time
 from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar
 
@@ -146,14 +147,33 @@ class CircuitBreaker:
         if not await self.can_execute():
             raise StorageUnavailable("Storage circuit breaker is OPEN")
 
+        start_time = time.perf_counter()
+        op_name = getattr(func, "__name__", "storage_op")
+
         try:
             result = await func(*args, **kwargs)
+            duration_s = time.perf_counter() - start_time
+            self._observer.on_storage_op(op_name, duration_s, ok=True)
             await self.record_success()
             return result
-        except StorageUnavailable:
+        except StorageUnavailable as exc:
+            duration_s = time.perf_counter() - start_time
+            try:
+                self._observer.on_storage_op(
+                    op_name, duration_s, False, error_type=type(exc).__name__
+                )  # type: ignore[call-arg]
+            except TypeError:
+                self._observer.on_storage_op(op_name, duration_s, False)
             await self.record_failure()
             raise
         except Exception as exc:
+            duration_s = time.perf_counter() - start_time
+            try:
+                self._observer.on_storage_op(
+                    op_name, duration_s, False, error_type=type(exc).__name__
+                )  # type: ignore[call-arg]
+            except TypeError:
+                self._observer.on_storage_op(op_name, duration_s, False)
             await self.record_failure()
             raise StorageUnavailable(f"Storage operation failed: {exc}") from exc
 

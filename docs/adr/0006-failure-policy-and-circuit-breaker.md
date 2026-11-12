@@ -43,3 +43,4 @@ Wrapped via `ResilientLimiter` and governed by `Policy.on_failure` and `Policy.o
 
 ### Negative / Trade-offs
 - In `local_fallback` mode, an aggregate of up to $N \times L$ requests may be allowed across $N$ API nodes during a Redis outage. This trade-off is explicitly documented and tracked via the degraded status indicator.
+

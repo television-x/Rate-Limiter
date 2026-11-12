@@ -52,6 +52,8 @@ async def run_with_retry[T](
     for attempt in range(max_attempts):
         committed, result = await fn(attempt)
         if committed:
+            if hasattr(observer, "on_txn_attempts"):
+                observer.on_txn_attempts(algorithm, attempt + 1)
             return result
 
         # Conflict occurred on attempt
@@ -63,5 +65,7 @@ async def run_with_retry[T](
             await asyncio.sleep(jitter_ms / 1000.0)
 
     # Retries exhausted
+    if hasattr(observer, "on_txn_attempts"):
+        observer.on_txn_attempts(algorithm, max_attempts)
     observer.on_txn_retry_exhausted(algorithm)
     raise ContentionExhausted(key=key, attempts=max_attempts, algorithm=algorithm)

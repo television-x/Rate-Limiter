@@ -30,9 +30,11 @@ from app.core.circuit_breaker import CircuitBreaker, CircuitBreakerStorage
 from app.core.clock import Clock, SystemClock
 from app.core.errors import ContentionExhausted, InvalidIdentity, StorageUnavailable
 from app.core.limiter import LimiterFactory, get_default_limiter_factory
-from app.core.observer import NullObserver, Observer
+from app.core.observer import Observer
 from app.core.storage.base import Storage
 from app.core.storage.memory import MemoryStorage
+from app.metrics.prometheus import default_observer
+from app.metrics.prometheus import router as metrics_router
 from app.middleware.observability import ObservabilityMiddleware
 from app.policies import PolicyRegistry, load_policies_from_yaml
 
@@ -52,7 +54,7 @@ def create_app(
     """Create and configure a FastAPI rate limiter application instance."""
     app_settings = settings or get_settings()
     app_clock = clock or SystemClock()
-    app_observer = observer or NullObserver()
+    app_observer = observer or default_observer
     app_factory = limiter_factory or get_default_limiter_factory()
     app_breaker = circuit_breaker or CircuitBreaker(clock=app_clock, observer=app_observer)
     app_fallback = fallback_storage or MemoryStorage(clock=app_clock)
@@ -129,6 +131,7 @@ def create_app(
     app.include_router(health_router)
     app.include_router(demo_router)
     app.include_router(policies_router)
+    app.include_router(metrics_router)
 
     return app
 
