@@ -10,6 +10,8 @@
 
 A production-grade, concurrency-safe distributed rate limiter demonstrating **four rate limiting algorithms**, synchronized across multiple API replicas via **Redis 7.x**, protected by an automated **Circuit Breaker**, monitored in real time with **Prometheus**, load-balanced via **Nginx**, and visualized through an interactive **React + TypeScript dashboard**.
 
+![Distributed Rate Limiter Dashboard Overview](screenshots/dashboard-overview.png)
+
 ---
 
 ## Architecture Overview
@@ -85,6 +87,27 @@ flowchart TD
 | **Token Bucket** | `WATCH` + `HMGET` + `HSET` | $\mathcal{O}(1)$ | $\mathcal{O}(1)$ | Exact vs refill bound | ✅ Allows controlled burst | Developer APIs (Stripe, AWS standard), background queues |
 
 For detailed algorithmic specifications, state keys, and complexity bounds, see [docs/algorithms.md](docs/algorithms.md).
+
+---
+
+## Interactive Dashboard Preview
+
+The application includes a built-in React 18 + TypeScript web cockpit designed to test, monitor, and visualize distributed rate limiting concepts live in your browser:
+
+### 1. Real-Time Traffic Generator & Response Log
+Test API routes by firing single requests or configurable bursts with custom client identities. Inspect response codes (HTTP 200 vs 429 Too Many Requests), server node routing (`X-Served-By`), client round-trip latency, remaining quota, and internal Redis overhead (`Server-Timing`).
+
+![Real-Time Traffic Generator](screenshots/traffic-generator.png)
+
+### 2. Dynamic Policy Selection & Live Limits
+Switch between rate-limiting policies on the fly or update capacity, refill rates, and time windows via the Admin API. All backend replicas automatically synchronize updates within 2 seconds without requiring application restarts.
+
+![Policy Selection & Live Limits](screenshots/policy-selector.png)
+
+### 3. Side-by-Side Algorithm Comparison
+Fire an identical synchronized burst of requests across all four algorithms simultaneously to visually compare allowed vs. rejected counts, client latency, and algorithmic behavioral characteristics in real time.
+
+![Side-by-Side Algorithm Comparison](screenshots/algorithm-comparison.png)
 
 ---
 
@@ -227,3 +250,4 @@ Key architectural choices are formally documented in `docs/adr/`:
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
